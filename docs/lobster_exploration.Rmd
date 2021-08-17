@@ -1,0 +1,127 @@
+---
+title: "lobster_exploration"
+author: "Marie Rivers"
+date: "8/16/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+library(janitor)
+```
+# Task 2: SBC Lobsters
+```{r}
+lobster_abundance <- read_csv(here("data", "Lobster_Abundance_All_Years_20210412.csv"), na = c("-99999", "")) 
+
+lobster_abundance <- lobster_abundance %>% 
+  clean_names()
+```
+Use `dplyr::uncount()` to convert the data from the *frequency* of a thing to each *case* of the thing
+```{r}
+lobster_abundance_case <- lobster_abundance %>% 
+  uncount(count)
+# this fiction removed the "count" column. If an observation recorded a count of 4, then that observation was converted into 4 rows
+```
+
+Find counts and mean sizes by site and year
+```{r}
+lobster <- lobster_abundance_case %>% 
+  group_by(site, year) %>% 
+  summarise(count = n(),
+            mean_carapace_length = mean(size_mm, na.rm = TRUE))
+lobster
+```
+Create a ggplot graph of the number of total lobsters observed (y-axis) by year (x-axis) in the study, grouped (either aesthetically or by faceting) by site
+```{r}
+ggplot(lobster, aes(x = year, y = count)) +
+  geom_point(aes(color = site)) +
+  facet_wrap(vars(site))
+  labs (x = "year",
+         y = "# of lobsters observed")
+```
+## Find the proportion of legal lobsters at each site for 2020  
+The legal lobster size (carapce length) in California is 79.76 mm.
+```{r}
+lobster_abundance_case <- lobster_abundance_case %>% 
+  mutate(legal = case_when(
+    size_mm >= 79.76 ~ "yes",
+    size_mm <79.76 ~ "no"))
+  
+legal_lobsters <- lobster_abundance_case %>% 
+  filter(size_mm >= 79.76) %>% 
+  filter(year == "2020")
+
+# find the count of lobsters observed at each site (only using site as the grouping factor) that are above and below the legal limit.
+legal_summary <- lobster_abundance_case %>% 
+  group_by(site, legal) %>% 
+  filter(legal != "na") %>% 
+  filter(year == "2020") %>% 
+  summarise(count_legal = n())
+legal_summary
+```
+Create a stacked column graph that shows the proportion of legal and non-legal lobsters at each site
+```{r}
+ggplot(legal_summary, aes(x = site, y = count_legal)) +
+  geom_col(aes(fill = legal), position = "fill")
+```
+## Task 3: Random lobster wrangling
+filter() practice
+```{r}
+ex_a <- lobster_abundance %>% 
+  filter(site %in% c("IVEE", "CARP", "NAPL"))
+
+ex_b <- lobster_abundance %>% 
+  filter(month == "8")
+
+ex_c <- lobster_abundance %>% 
+  filter(site == "AQUE" | size_mm > 70)
+
+ex_d <- lobster_abundance %>% 
+  filter(site != "NAPL")
+```
+group_by() %>% summarize() practice
+```{r}
+ex_e <- lobster_abundance %>% 
+  group_by(site) %>% 
+  summarise(mean_carapace = mean(size_mm, na.rm = TRUE),
+            sd_carapace = sd(size_mm, na.rm = TRUE))
+ex_e
+
+ex_f <- lobster_abundance %>% 
+  group_by(site, month) %>% 
+  summarize(max_carapace = max(size_mm, na.rm = TRUE))
+ex_f
+```
+mutate() practice
+```{r}
+ex_g <- lobster_abundance %>% 
+  mutate(size_cm = size_mm / 100)
+ex_g
+
+ex_h <- lobster_abundance %>% 
+  mutate(site = tolower(site))
+ex_h
+
+ex_i <- lobster_abundance %>% 
+  mutate(area = as.character(area))
+ex_i
+is.numeric(ex_i$area)
+
+```
+case_when() practice
+```{r}
+ex_j <- lobster_abundance %>% 
+  mutate(size_bin = case_when(
+    size_mm <= 70 ~ "small",
+    size_mm > 70 ~ "large"))
+ex_j
+
+ex_k <- lobster_abundance %>% 
+  mutate(designation = case_when(
+    site == "IVEE" ~ "MPA",
+    site == "NAPL" ~ "MPA",
+    TRUE ~ "not MPA"))
+ex_k
+```
